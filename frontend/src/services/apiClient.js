@@ -2,6 +2,38 @@ import axios from 'axios';
 import * as mockDb from './mockData';
 import { gsmRanges } from '../constants/filterOptions';
 
+// Normalizes Supabase snake_case product fields to camelCase used by UI components
+const normalizeProduct = (p) => {
+  if (!p) return p;
+  return {
+    ...p,
+    // Core identity
+    id:               p.id,
+    styleNumber:      p.style_number   ?? p.styleNumber,
+    styleName:        p.style_name     ?? p.styleName,
+    // Product attributes
+    fabric:           p.fabric,
+    gsm:              p.gsm,
+    color:            p.color,
+    print:            p.print,
+    season:           p.season,
+    category:         p.category,
+    brand:            p.brand,
+    description:      p.description,
+    // Pricing & stock
+    costPrice:        p.cost_price     ?? p.costPrice     ?? p.cost,
+    sellingPrice:     p.selling_price  ?? p.sellingPrice,
+    stockQuantity:    p.stock_quantity ?? p.stockQuantity,
+    // Relations
+    supplier:         p.supplier_name  ?? p.supplier,
+    buyer:            p.buyer_name     ?? p.buyer,
+    supplierId:       p.supplier_id    ?? p.supplierId,
+    // Images & AI
+    imageUrl:         p.image_url      ?? p.imageUrl,
+    similarityScore:  p.similarity_score ?? p.similarityScore,
+  };
+};
+
 // Initialize Axios instance
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -51,18 +83,13 @@ export const erpService = {
   // 1. Dashboard metrics
   async getDashboardData(signal) {
     try {
-      // In production: const res = await apiClient.get('/dashboard', { signal }); return res.data;
-      await wait(600);
-      if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError');
-      return {
-        kpis: mockDb.kpiData,
-        revenueTrend: mockDb.revenueTrend,
-        supplierPerformance: mockDb.supplierPerformance,
-        productCategories: mockDb.productCategories,
-        recentActivity: mockDb.recentActivity
-      };
+      const res = await apiClient.get('/dashboard', { signal });
+      if (res.data && res.data.success) {
+        return res.data.data;
+      }
+      throw new Error('API request failed');
     } catch (err) {
-      if (err.name === 'AbortError') throw err;
+      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
       console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
       return {
         kpis: mockDb.kpiData,
@@ -77,9 +104,14 @@ export const erpService = {
   // 2. Natural Language Query
   async submitNLQuery(queryText, signal) {
     try {
-      // In production: const res = await apiClient.post('/query', { query: queryText }, { signal }); return res.data;
-      await wait(1200); // Simulate model thinking
-      if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError');
+      const res = await apiClient.post('/ai/query', { query: queryText }, { signal });
+      if (res.data && res.data.success) {
+        return res.data.data;
+      }
+      throw new Error('AI query request failed');
+    } catch (err) {
+      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
+      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
       
       const queryLower = queryText.toLowerCase();
       // Search for matches in mock NL queries
@@ -102,18 +134,19 @@ export const erpService = {
           .map(p => [p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()]),
         aiResponse: `Based on your request, I generated a query to look for garments matching "${queryText}". Found ${Math.min(3, mockDb.products.length)} matching samples in current inventory.`
       };
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      throw new Error(err.customMessage || 'Query service unavailable');
     }
   },
 
   // 3. Product Search
   async searchProducts(params, signal) {
     try {
-      // In production: const res = await apiClient.get('/products/search', { params, signal }); return res.data;
-      await wait(700);
-      if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError');
+      const res = await apiClient.get('/products', { params: { ...params, limit: 100 }, signal });
+      if (res.data && res.data.success) {
+        return res.data.data.map(normalizeProduct);
+      }
+    } catch (err) {
+      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
+      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
 
       const { q = '', category, fabric, gsmRange, supplier, buyer, print, color, season } = params;
       let filtered = [...mockDb.products];
@@ -148,24 +181,29 @@ export const erpService = {
       }
 
       return filtered;
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      return mockDb.products;
     }
   },
 
   // 4. Image search (garment similarity)
   async searchByImage(imageFile, textQuery, similarityThreshold = 70, signal) {
     try {
-      // In production: multipart form-data upload with Axios
-      // const formData = new FormData();
-      // if (imageFile) formData.append('image', imageFile);
-      // formData.append('text', textQuery);
-      // formData.append('threshold', similarityThreshold);
-      // const res = await apiClient.post('/image-search', formData, { signal }); return res.data;
-      
-      await wait(1000);
-      if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError');
+      const formData = new FormData();
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+      formData.append('textQuery', textQuery);
+      formData.append('threshold', similarityThreshold);
+      const res = await apiClient.post('/image/search', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        signal
+      });
+      if (res.data && res.data.success) {
+        return res.data.data.map(normalizeProduct);
+      }
+      throw new Error('Image search request failed');
+    } catch (err) {
+      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
+      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
 
       // Return products with simulated similarity scores
       let results = mockDb.products.map(p => {
@@ -188,17 +226,39 @@ export const erpService = {
       results.sort((a, b) => b.similarityScore - a.similarityScore);
 
       return results;
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      return mockDb.products;
     }
   },
 
   // 5. Explorer with sorting/pagination
   async getExplorerProducts(params = {}, signal) {
     try {
-      await wait(600);
-      if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError');
+      const { search = '', category = 'All', sortField = 'styleName', sortOrder = 'asc' } = params;
+      const res = await apiClient.get('/products', {
+        params: { q: search, category, limit: 100 },
+        signal
+      });
+      if (res.data && res.data.success) {
+        let items = res.data.data.map(normalizeProduct);
+        // Sort items in frontend as expected by the page design
+        items.sort((a, b) => {
+          let fieldA = a[sortField];
+          let fieldB = b[sortField];
+
+          if (typeof fieldA === 'string') {
+            fieldA = fieldA.toLowerCase();
+            fieldB = fieldB.toLowerCase();
+          }
+
+          if (fieldA < fieldB) return sortOrder === 'asc' ? -1 : 1;
+          if (fieldA > fieldB) return sortOrder === 'asc' ? 1 : -1;
+          return 0;
+        });
+        return items;
+      }
+      throw new Error('Explorer products request failed');
+    } catch (err) {
+      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
+      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
 
       const { search = '', sortField = 'styleName', sortOrder = 'asc', category = 'All' } = params;
       let filtered = [...mockDb.products];
@@ -233,9 +293,6 @@ export const erpService = {
       });
 
       return filtered;
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      return mockDb.products;
     }
   }
 };

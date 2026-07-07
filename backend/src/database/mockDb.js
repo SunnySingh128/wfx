@@ -49,6 +49,81 @@ export const recentActivity = [
   { id: 'act-2', title: 'Sales invoice generated', detail: 'INV-2026-011 issued for H&M Group (SO-002342) worth $78,500.', time: '5 hours ago', status: 'info' },
   { id: 'act-3', title: 'Supplier lead time warning', detail: 'Guangdong Silk Co. lead times delayed by 4 days due to port delays.', time: '1 day ago', status: 'warning' },
   { id: 'act-4', title: 'Bulk order dispatched', detail: '4,800 units of WFX-2026-SH03 shipped out to Stockholm warehouse.', time: '2 days ago', status: 'success' },
+  { id: 'act-5', title: 'New design uploaded', detail: 'Designer uploaded tech pack for "Oversized Merino Sweater".', time: '3 days ago', status: 'warning' },
+];
+
+// Revenue trend data for dashboard charts (monthly)
+export const revenueTrend = [
+  { month: 'Jan', Revenue: 185000, Profit: 55000, Orders: 95 },
+  { month: 'Feb', Revenue: 210000, Profit: 68000, Orders: 110 },
+  { month: 'Mar', Revenue: 245000, Profit: 78000, Orders: 130 },
+  { month: 'Apr', Revenue: 220000, Profit: 70000, Orders: 115 },
+  { month: 'May', Revenue: 290000, Profit: 95000, Orders: 145 },
+  { month: 'Jun', Revenue: 340000, Profit: 112000, Orders: 170 },
+  { month: 'Jul', Revenue: 380000, Profit: 128000, Orders: 195 },
+  { month: 'Aug', Revenue: 360000, Profit: 118000, Orders: 180 },
+  { month: 'Sep', Revenue: 410000, Profit: 139000, Orders: 210 },
+  { month: 'Oct', Revenue: 430000, Profit: 146000, Orders: 220 },
+  { month: 'Nov', Revenue: 490000, Profit: 168000, Orders: 250 },
+  { month: 'Dec', Revenue: 560000, Profit: 198000, Orders: 290 },
+];
+
+// Product category distribution for dashboard pie chart
+export const productCategories = [
+  { name: 'Outerwear', value: 3000, color: '#6366f1' },
+  { name: 'Shirts', value: 8200, color: '#3b82f6' },
+  { name: 'Dresses', value: 2900, color: '#10b981' },
+  { name: 'Trousers', value: 8300, color: '#f59e0b' },
+  { name: 'Knitwear', value: 2700, color: '#ec4899' },
+  { name: 'Activewear', value: 7200, color: '#8b5cf6' },
+];
+
+// NL Query mock responses (for offline AI query simulation)
+export const nlQueries = [
+  {
+    query: 'Show me total revenue by supplier',
+    sql: `SELECT s.name, SUM(so.total_amount) AS revenue \nFROM suppliers s \nJOIN finished_goods fg ON fg.supplier_id = s.id \nJOIN sales_order_items soi ON soi.product_id = fg.id \nJOIN sales_orders so ON so.id = soi.order_id \nGROUP BY s.name \nORDER BY revenue DESC;`,
+    headers: ['Supplier', 'Total Revenue'],
+    rows: [
+      ['Apex Apparel Source', '$173,500.00'],
+      ['Textile Horizon Ltd', '$120,500.00'],
+      ['Nippon Denim Mills', '$95,000.00'],
+      ['EuroKnit Fabrics', '$82,500.00'],
+      ['Guangdong Silk Co.', '$67,400.00'],
+    ],
+    aiResponse: 'Apex Apparel Source leads in revenue contribution with $173,500.00 due to premium outerwear, followed closely by Textile Horizon Ltd at $120,500.00.'
+  },
+  {
+    query: 'Find garments with fabric containing Cotton and price under 20',
+    sql: `SELECT style_number, style_name, fabric, selling_price \nFROM finished_goods \nWHERE fabric LIKE '%Cotton%' AND selling_price < 20.00;`,
+    headers: ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'],
+    rows: [
+      ['WFX-2026-TS02', 'Organic Slub Tee Pack', 'Supima Cotton Slub', '$18.00', '7,200'],
+    ],
+    aiResponse: 'Found 1 cotton-based product priced below $20.00. The "Organic Slub Tee Pack" (WFX-2026-TS02) retails at $18.00 with 7,200 units in stock.'
+  },
+  {
+    query: 'List top buyers by ordered stock',
+    sql: `SELECT b.name, SUM(soi.quantity) AS total_quantity \nFROM buyers b \nJOIN sales_orders so ON so.buyer_id = b.id \nJOIN sales_order_items soi ON soi.order_id = so.id \nGROUP BY b.name \nORDER BY total_quantity DESC;`,
+    headers: ['Buyer Brand', 'Total Units Allocated'],
+    rows: [
+      ['Zara (Inditex)', '5,600 units'],
+      ['H&M Group', '10,000 units'],
+      ['ASOS Plc', '12,100 units'],
+      ['Nordstrom Inc.', '2,850 units'],
+      ['Uniqlo (Fast Retailing)', '1,750 units'],
+    ],
+    aiResponse: 'ASOS Plc is the largest partner by volume, with 12,100 units currently allocated across various styles, followed by H&M Group with 10,000 units.'
+  },
+  {
+    query: 'What is the average price of heavy garments (GSM > 300)?',
+    sql: `SELECT AVG(selling_price) AS average_price \nFROM finished_goods \nWHERE gsm > 300;`,
+    headers: ['Garment Type', 'Avg. Selling Price', 'Count'],
+    rows: [
+      ['Heavyweight (>300 GSM)', '$87.60', '4 styles'],
+    ],
+    aiResponse: 'Heavyweight fabrics (GSM > 300) have an average retail price of $87.60 across 4 unique styles, driven by denim, knitwear, and outerwear collections.'
+  }
 ];
 
 // Helper to query products dynamically (offline client search simulation)

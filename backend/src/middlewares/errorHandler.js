@@ -5,7 +5,7 @@ export const errorHandler = (err, req, res, next) => {
   const message = err.message || 'Internal Server Error';
 
   console.error(`[ERROR] ${req.method} ${req.url} - Status ${statusCode} - ${message}`);
-  if (err.stack && env.nodeEnv === 'development') {
+  if (err.stack && env.NODE_ENV === 'development') {
     console.error(err.stack);
   }
 
@@ -15,7 +15,7 @@ export const errorHandler = (err, req, res, next) => {
     message,
     timestamp: new Date().toISOString(),
     errors: err.errors || [],
-    ...(env.nodeEnv === 'development' && { stack: err.stack })
+    ...(env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };
 

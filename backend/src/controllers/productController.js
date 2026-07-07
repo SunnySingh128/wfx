@@ -42,6 +42,7 @@ export const productController = {
       let query = supabase.from('finished_goods').select('*', { count: 'exact' });
 
       // Apply optional query filters
+      if (q) query = query.or(`style_name.ilike.%${q}%,style_number.ilike.%${q}%,fabric.ilike.%${q}%`);
       if (category && category !== 'All') query = query.eq('category', category);
       if (fabric) query = query.ilike('fabric', `%${fabric}%`);
       if (color) query = query.eq('color', color);
@@ -113,7 +114,148 @@ export const productController = {
     }
   },
 
-  // 4. POST /products/import (CSV Bulking Importer)
+  // 4. POST /products (Create a single product)
+  async createProduct(req, res, next) {
+    try {
+      const {
+        styleNumber, styleName, category, fabric, gsm, color, print,
+        costPrice, sellingPrice, stockQuantity, season, imageUrl, supplierId
+      } = req.body;
+
+      if (isMockDb) {
+        const newProduct = {
+          id: `p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          styleNumber,
+          styleName,
+          category,
+          fabric,
+          gsm: Number(gsm) || 200,
+          color: color || 'Solid Black',
+          print: print || 'Solid Color',
+          costPrice: Number(costPrice) || 0,
+          sellingPrice: Number(sellingPrice) || 0,
+          stockQuantity: Number(stockQuantity) || 0,
+          season: season || 'Spring 2026',
+          imageUrl: imageUrl || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&auto=format&fit=crop&q=80',
+          supplier: 'Textile Horizon Ltd',
+          buyer: '',
+          similarityScore: 50.0
+        };
+        mockDb.products.push(newProduct);
+        return res.status(201).json({ success: true, message: 'Product created successfully.', data: newProduct });
+      }
+
+      const { data, error } = await supabase
+        .from('finished_goods')
+        .insert({
+          style_number: styleNumber,
+          style_name: styleName,
+          category,
+          fabric,
+          gsm: Number(gsm),
+          color,
+          print,
+          cost_price: Number(costPrice),
+          selling_price: Number(sellingPrice),
+          stock_quantity: Number(stockQuantity),
+          season,
+          image_url: imageUrl,
+          supplier_id: supplierId || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.status(201).json({ success: true, message: 'Product created successfully.', data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // 5. PATCH /products/:id (Update product)
+  async updateProduct(req, res, next) {
+    const { id } = req.params;
+
+    try {
+      if (isMockDb) {
+        const idx = mockDb.products.findIndex(p => p.id === id || p.styleNumber === id);
+        if (idx < 0) throw new CustomError(`Product not found with ID: ${id}`, 404);
+
+        // Merge update fields
+        const allowed = ['styleName', 'category', 'fabric', 'gsm', 'color', 'print', 'costPrice', 'sellingPrice', 'stockQuantity', 'season', 'imageUrl'];
+        for (const key of allowed) {
+          if (req.body[key] !== undefined) {
+            mockDb.products[idx][key] = req.body[key];
+          }
+        }
+
+        return res.status(200).json({ success: true, message: 'Product updated successfully.', data: mockDb.products[idx] });
+      }
+
+      // Map camelCase body keys to snake_case DB columns
+      const updatePayload = {};
+      const mapping = {
+        styleName: 'style_name', category: 'category', fabric: 'fabric', gsm: 'gsm',
+        color: 'color', print: 'print', costPrice: 'cost_price', sellingPrice: 'selling_price',
+        stockQuantity: 'stock_quantity', season: 'season', imageUrl: 'image_url', supplierId: 'supplier_id'
+      };
+
+      for (const [camel, snake] of Object.entries(mapping)) {
+        if (req.body[camel] !== undefined) {
+          updatePayload[snake] = req.body[camel];
+        }
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        throw new CustomError('No valid fields to update.', 400);
+      }
+
+      const { data, error } = await supabase
+        .from('finished_goods')
+        .update(updatePayload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) throw new CustomError(`Product not found with ID: ${id}`, 404);
+
+      res.status(200).json({ success: true, message: 'Product updated successfully.', data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // 6. DELETE /products/:id
+  async deleteProduct(req, res, next) {
+    const { id } = req.params;
+
+    try {
+      if (isMockDb) {
+        const idx = mockDb.products.findIndex(p => p.id === id || p.styleNumber === id);
+        if (idx < 0) throw new CustomError(`Product not found with ID: ${id}`, 404);
+        const removed = mockDb.products.splice(idx, 1);
+        return res.status(200).json({ success: true, message: 'Product deleted successfully.', data: removed[0] });
+      }
+
+      const { data, error } = await supabase
+        .from('finished_goods')
+        .delete()
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) throw new CustomError(`Product not found with ID: ${id}`, 404);
+
+      res.status(200).json({ success: true, message: 'Product deleted successfully.', data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // 7. POST /products/import (CSV Bulking Importer)
   async importProductsCSV(req, res, next) {
     if (!req.file) {
       return next(new CustomError('No CSV file uploaded.', 400));

@@ -6,6 +6,15 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Drop Existing Tables to prevent schema conflicts
+DROP TABLE IF EXISTS sales_invoices CASCADE;
+DROP TABLE IF EXISTS sales_order_items CASCADE;
+DROP TABLE IF EXISTS sales_orders CASCADE;
+DROP TABLE IF EXISTS tech_packs CASCADE;
+DROP TABLE IF EXISTS finished_goods CASCADE;
+DROP TABLE IF EXISTS buyers CASCADE;
+DROP TABLE IF EXISTS suppliers CASCADE;
+
 -- 1. Suppliers Table
 CREATE TABLE IF NOT EXISTS suppliers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

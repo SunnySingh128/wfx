@@ -10,11 +10,35 @@ export const aiController = {
 
     try {
       console.log(`[AI Controller] Compiling NL query: "${query}"`);
-      // Step A: Generate SQL from English
+
+      // Step A: Check for pre-built NL query responses (mock mode fast path)
+      if (isMockDb) {
+        const queryLower = query.toLowerCase();
+        const match = mockDb.nlQueries.find(q =>
+          queryLower.includes(q.query.toLowerCase()) ||
+          q.query.toLowerCase().includes(queryLower)
+        );
+
+        if (match) {
+          return res.status(200).json({
+            success: true,
+            message: 'Natural language query parsed and executed.',
+            data: {
+              query,
+              sql: match.sql,
+              headers: match.headers,
+              rows: match.rows,
+              aiResponse: match.aiResponse
+            }
+          });
+        }
+      }
+
+      // Step B: Generate SQL from English
       const sql = await aiService.generateSQL(query);
       console.log(`[AI Controller] Generated SQL Statement:\n${sql}`);
 
-      // Step B: Direct Safety Check (express-validator already checked but double-verify here)
+      // Step C: Direct Safety Check (express-validator already checked but double-verify here)
       const sqlLower = sql.toLowerCase();
       const mutations = ['insert', 'update', 'delete', 'drop', 'truncate', 'alter', 'create', 'grant'];
       if (mutations.some(kw => sqlLower.includes(kw))) {
@@ -24,10 +48,10 @@ export const aiController = {
       let rows = [];
       let headers = [];
 
-      // Step C: Execute SQL
+      // Step D: Execute SQL
       if (isMockDb) {
         // Mock DB Executor matching keywords
-        rows = mockDb.queryProductsMock({ q: query }).slice(0, 3).map(p => [
+        rows = mockDb.queryProductsMock({ q: query }).slice(0, 5).map(p => [
           p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
         ]);
         headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];
@@ -44,14 +68,14 @@ export const aiController = {
           }
         } catch (dbErr) {
           console.warn('[AI Controller] SQL run against Supabase failed, using database fallback:', dbErr.message);
-          rows = mockDb.queryProductsMock({ q: query }).slice(0, 3).map(p => [
+          rows = mockDb.queryProductsMock({ q: query }).slice(0, 5).map(p => [
             p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
           ]);
           headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];
         }
       }
 
-      // Step D: AI Explanation
+      // Step E: AI Explanation
       const explanation = await aiService.generateExplanation(query, sql, rows);
 
       res.status(200).json({
@@ -80,7 +104,7 @@ export const aiController = {
 
       if (isMockDb) {
         // Return dummy rows for standard visual tests
-        rows = mockDb.products.slice(0, 3).map(p => [
+        rows = mockDb.products.slice(0, 5).map(p => [
           p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
         ]);
         headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];

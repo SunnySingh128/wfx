@@ -10,9 +10,9 @@ const server = app.listen(PORT, () => {
   console.log('╠══════════════════════════════════════════════════════════╣');
   console.log(`║  🚀 Server running at  http://localhost:${PORT}           ║`);
   console.log(`║  🌍 Environment:       ${(env.NODE_ENV || 'development').padEnd(35)}║`);
-  console.log(`║  🗄️  Database:          ${(env.SUPABASE_URL ? 'Supabase (Live)' : 'Mock DB (Offline)').padEnd(34)}║`);
-  console.log(`║  🔍 Search:            ${(env.TYPESENSE_API_KEY ? 'Typesense (Live)' : 'Local Fallback').padEnd(34)}║`);
-  console.log(`║  🤖 AI Engine:         ${(env.OPENROUTER_API_KEY ? 'OpenRouter (Live)' : 'Mock Responses').padEnd(33)}║`);
+  console.log(`║  🗄️  Database:          ${(env.supabaseUrl && !env.supabaseUrl.includes('mock') ? 'Supabase (Live)' : 'Mock DB (Offline)').padEnd(34)}║`);
+  console.log(`║  🔍 Search:            ${(env.typesenseApiKey && !env.typesenseApiKey.includes('mock') ? 'Typesense (Live)' : 'Local Fallback').padEnd(34)}║`);
+  console.log(`║  🤖 AI Engine:         ${(env.openrouterApiKey && !env.openrouterApiKey.includes('mock') ? 'OpenRouter (Live)' : 'Mock Responses').padEnd(33)}║`);
   console.log('╠══════════════════════════════════════════════════════════╣');
   console.log('║  📋 API Docs:          http://localhost:' + PORT + '              ║');
   console.log('║  ❤️  Health Check:     http://localhost:' + PORT + '/api/health  ║');

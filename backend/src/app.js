@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,7 +23,8 @@ app.use(helmet({
 // ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: [
-    env.FRONTEND_URL || 'http://localhost:5173',
+    env.FRONTEND_URL,
+    'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
   ],
@@ -30,6 +32,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// ─── Compression ──────────────────────────────────────────────────────────────
+app.use(compression());
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const apiLimiter = rateLimit({
@@ -75,10 +80,9 @@ app.get('/', (req, res) => {
     documentation: '/api/health',
     endpoints: {
       health: 'GET /api/health',
-      dashboard: 'GET /api/dashboard/kpis | /trends | /recent-orders | /top-suppliers',
+      dashboard: 'GET /api/dashboard | /kpis | /trends | /recent-orders | /top-suppliers | /categories | /activity',
       ai: 'POST /api/ai/query | /ai/sql',
-      products: 'GET /api/products | /products/search | /products/:id',
-      import: 'POST /api/products/import',
+      products: 'GET /api/products | /search | /:id  ·  POST /api/products | /import  ·  PATCH /:id  ·  DELETE /:id',
       imageSearch: 'POST /api/image/search',
       imageUpload: 'POST /api/image/upload',
       suppliers: 'GET /api/suppliers',
