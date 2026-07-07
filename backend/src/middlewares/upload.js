@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure tmp upload directory exists
-const uploadDir = path.join(__dirname, '..', 'uploads');
+const uploadDir = path.join(__dirname, '..', '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -59,6 +59,33 @@ export const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
+});
+
+// Named convenience exports for route files
+export const uploadCSV = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const mime = file.mimetype;
+    if (ext === '.csv' || mime === 'text/csv' || mime === 'application/vnd.ms-excel') {
+      return cb(null, true);
+    }
+    return cb(new CustomError('Only CSV files are allowed.', 400), false);
+  },
+  limits: { fileSize: 10 * 1024 * 1024 }  // 10MB for CSV files
+});
+
+export const uploadImage = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    if (allowed.includes(ext) && file.mimetype.startsWith('image/')) {
+      return cb(null, true);
+    }
+    return cb(new CustomError('Only JPEG, PNG, and WEBP images are allowed.', 400), false);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }   // 5MB for images
 });
 
 export default upload;
