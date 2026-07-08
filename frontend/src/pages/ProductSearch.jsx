@@ -4,9 +4,11 @@ import FilterPanel from '../components/features/FilterPanel';
 import ProductCard from '../components/features/ProductCard';
 import Pagination from '../components/ui/Pagination';
 import EmptyState from '../components/ui/EmptyState';
+import ExportButton from '../components/ui/ExportButton';
 import { SkeletonProductCard } from '../components/ui/Skeleton';
 import { erpService } from '../services/apiClient';
 import { useDebounce } from '../hooks/useDebounce';
+import { exportToCSV } from '../utils/csvExport';
 
 const ITEMS_PER_PAGE = 9;
 const EMPTY_FILTERS = { category: '', fabric: '', gsmRange: '', supplier: '', buyer: '', print: '', color: '', season: '' };
@@ -57,6 +59,15 @@ function ProductSearch() {
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
   const paginatedProducts = products.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const handleExport = useCallback(() => {
+    exportToCSV(
+      products,
+      'product_search_results',
+      ['styleNumber', 'styleName', 'category', 'fabric', 'gsm', 'color', 'supplier', 'buyer', 'sellingPrice', 'stockQuantity'],
+      { styleNumber: 'Style Number', styleName: 'Style Name', category: 'Category', fabric: 'Fabric', gsm: 'GSM', color: 'Color', supplier: 'Supplier', buyer: 'Buyer', sellingPrice: 'Selling Price', stockQuantity: 'Stock Quantity' }
+    );
+  }, [products]);
+
   return (
     <div className="search-page-layout">
       <FilterPanel filters={filters} onChange={handleFilterChange} onReset={handleResetFilters} />
@@ -79,6 +90,7 @@ function ProductSearch() {
           <span className="search-results-count" aria-live="polite">
             {loading ? 'Searching…' : `${products.length} result${products.length !== 1 ? 's' : ''}`}
           </span>
+          <ExportButton onExport={handleExport} disabled={products.length === 0 || loading} />
         </div>
 
         {/* Error Alert */}

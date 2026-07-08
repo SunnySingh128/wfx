@@ -13,6 +13,8 @@ import { erpService } from '../services/apiClient';
 import { useFetch } from '../hooks/useFetch';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import Badge from '../components/ui/Badge';
+import ExportButton from '../components/ui/ExportButton';
+import { exportToCSV } from '../utils/csvExport';
 
 const fetchDashboard = (signal) => erpService.getDashboardData(signal);
 
@@ -197,8 +199,21 @@ function Dashboard() {
 
           {/* Supplier Performance */}
           <div className="wfx-card">
-            <h2 className="chart-title">Supplier Scorecard</h2>
-            <p className="chart-subtitle">Performance ranking this quarter</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 className="chart-title">Supplier Scorecard</h2>
+                <p className="chart-subtitle">Performance ranking this quarter</p>
+              </div>
+              <ExportButton
+                onExport={() => exportToCSV(
+                  d.supplierPerformance || [],
+                  'suppliers',
+                  ['name', 'score', 'onTime', 'leadTime'],
+                  { name: 'Supplier', score: 'Score (%)', onTime: 'On-Time (%)', leadTime: 'Lead Time' }
+                )}
+                disabled={!d.supplierPerformance || d.supplierPerformance.length === 0}
+              />
+            </div>
             <div className="wfx-table-container" style={{ marginTop: '1rem', border: 'none', borderRadius: 0 }}>
               <table className="wfx-table" aria-label="Supplier performance table">
                 <thead>

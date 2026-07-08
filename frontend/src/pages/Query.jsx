@@ -3,6 +3,8 @@ import { IoSend, IoCodeSlash, IoSparkles } from 'react-icons/io5';
 import { erpService } from '../services/apiClient';
 import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
+import ExportButton from '../components/ui/ExportButton';
+import { exportTableToCSV } from '../utils/csvExport';
 
 const SUGGESTED_QUERIES = [
   'Show me total revenue by supplier',
@@ -68,6 +70,17 @@ function QueryMessage({ msg }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Export button for SQL results */}
+      {headers && rows && rows.length > 0 && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <ExportButton
+            onExport={() => exportTableToCSV(headers, rows, 'sql_query_results')}
+            disabled={false}
+            label="Export Results"
+          />
         </div>
       )}
 

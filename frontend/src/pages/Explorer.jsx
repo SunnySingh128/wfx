@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IoSearchOutline, IoSwapVerticalOutline } from 'react-icons/io5';
 import ProductCard from '../components/features/ProductCard';
 import Pagination from '../components/ui/Pagination';
 import EmptyState from '../components/ui/EmptyState';
+import ExportButton from '../components/ui/ExportButton';
 import { SkeletonProductCard } from '../components/ui/Skeleton';
 import { erpService } from '../services/apiClient';
 import { useDebounce } from '../hooks/useDebounce';
 import { categories } from '../constants/filterOptions';
+import { exportToCSV } from '../utils/csvExport';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -61,6 +63,16 @@ function Explorer() {
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
   const paginatedProducts = products.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  // CSV export — exports ALL filtered/sorted products, not just current page
+  const handleExport = useCallback(() => {
+    exportToCSV(
+      products,
+      'finished_goods',
+      ['styleNumber', 'styleName', 'category', 'fabric', 'gsm', 'color', 'supplier', 'buyer', 'sellingPrice', 'stockQuantity'],
+      { styleNumber: 'Style Number', styleName: 'Style Name', category: 'Category', fabric: 'Fabric', gsm: 'GSM', color: 'Color', supplier: 'Supplier', buyer: 'Buyer', sellingPrice: 'Selling Price', stockQuantity: 'Stock Quantity' }
+    );
+  }, [products]);
+
   return (
     <div>
       {/* Controls Row */}
@@ -111,6 +123,9 @@ function Explorer() {
               ))}
             </select>
           </div>
+
+          {/* Export */}
+          <ExportButton onExport={handleExport} disabled={products.length === 0 || loading} />
         </div>
       </div>
 
