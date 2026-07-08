@@ -10,6 +10,7 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
 [![OpenRouter](https://img.shields.io/badge/AI-OpenRouter-FF6B35?style=flat-square&logo=openai&logoColor=white)](https://openrouter.ai)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](#-docker-support)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 [🚀 Live Demo (Frontend)](https://wfx-topaz.vercel.app/) · [🔌 Live API (Backend)](https://wfx-ecqx.onrender.com/api) · [📖 API Docs](#api-reference) · [🐛 Report Bug](https://github.com/SunnySingh128/wfx/issues)
@@ -96,6 +97,7 @@ wfx/
 | **AI Engine** | OpenRouter API (Gemma, LLaMA, free-tier models) |
 | **Styling** | Vanilla CSS, CSS Custom Properties, Glassmorphism |
 | **HTTP Client** | Axios with request/response interceptors |
+| **DevOps** | Docker, Docker Compose, Nginx |
 
 ---
 
@@ -245,6 +247,90 @@ All non-AI endpoints verified with live Supabase data:
 ✅ GET /api/orders          → 5 sales orders
 ✅ GET /api/invoices        → 2 invoices
 ```
+
+---
+
+## 🐳 Docker Support
+
+The project is fully containerized using **Docker** and **Docker Compose** for local development. The Docker setup connects to the existing hosted Supabase database — no local database container is needed.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Engine + Docker Compose)
+- Your `backend/.env` file must be configured with valid Supabase and OpenRouter credentials
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│               Docker Compose                    │
+│                                                 │
+│  ┌──────────────┐       ┌──────────────────┐    │
+│  │   Frontend   │       │     Backend      │    │
+│  │  (Nginx:80)  │──────▶│  (Express:5000)  │────┼──▶ Supabase (Cloud)
+│  │  Port: 3000  │       │   Port: 5000     │────┼──▶ OpenRouter (Cloud)
+│  └──────────────┘       └──────────────────┘    │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+| Service | Container | Host Port | Internal Port | Image |
+|---------|-----------|-----------|---------------|-------|
+| Frontend | `wfx-frontend` | `3000` | `80` | Nginx (Alpine) |
+| Backend | `wfx-backend` | `5000` | `5000` | Node 22 (Alpine) |
+
+### Build & Run
+
+```bash
+# Build and start all services
+docker compose up --build
+
+# Run in detached (background) mode
+docker compose up --build -d
+```
+
+Once running, open:
+- **Frontend:** [http://localhost:3000](http://localhost:3000)
+- **Backend API:** [http://localhost:5000/api/health](http://localhost:5000/api/health)
+
+### Useful Commands
+
+```bash
+# View running containers
+docker compose ps
+
+# View logs (all services)
+docker compose logs
+
+# View logs (specific service, follow mode)
+docker compose logs -f backend
+docker compose logs -f frontend
+
+# Stop all containers
+docker compose down
+
+# Stop and remove volumes
+docker compose down -v
+
+# Rebuild a specific service
+docker compose build backend
+docker compose build frontend
+
+# Restart a specific service
+docker compose restart backend
+```
+
+### Environment Variables
+
+The Docker setup reads environment variables from `backend/.env`. No secrets are hardcoded in any Docker file. Ensure your `.env` contains:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+OPENROUTER_API_KEY=your-openrouter-key
+```
+
+> **Note:** Docker is for local development only. Production deployments continue to use **Vercel** (frontend) and **Render** (backend).
 
 ---
 
