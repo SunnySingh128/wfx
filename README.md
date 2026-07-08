@@ -12,7 +12,7 @@
 [![OpenRouter](https://img.shields.io/badge/AI-OpenRouter-FF6B35?style=flat-square&logo=openai&logoColor=white)](https://openrouter.ai)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-[🚀 Live Demo](#) · [📖 API Docs](#api-reference) · [🐛 Report Bug](https://github.com/SunnySingh128/wfx/issues)
+[🚀 Live Demo (Frontend)](https://wfx-topaz.vercel.app/) · [🔌 Live API (Backend)](https://wfx-ecqx.onrender.com/api) · [📖 API Docs](#api-reference) · [🐛 Report Bug](https://github.com/SunnySingh128/wfx/issues)
 
 </div>
 
@@ -176,7 +176,8 @@ npm run dev
 
 ## 📡 API Reference
 
-Base URL: `http://localhost:5000/api`
+- **Production Base URL:** `https://wfx-ecqx.onrender.com/api`
+- **Local Base URL:** `http://localhost:5000/api`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
