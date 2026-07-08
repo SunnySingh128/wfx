@@ -1,6 +1,4 @@
 import axios from 'axios';
-import * as mockDb from './mockData';
-import { gsmRanges } from '../constants/filterOptions';
 
 // Normalizes Supabase snake_case product fields to camelCase used by UI components
 const normalizeProduct = (p) => {
@@ -37,7 +35,7 @@ const normalizeProduct = (p) => {
 // Initialize Axios instance
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  timeout: 10000, // 10s timeout
+  timeout: 35000, // 35s timeout (AI queries on free-tier models can be slow)
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -47,9 +45,6 @@ const apiClient = axios.create({
 // Request Interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Add Authorization header here if needed in production
-    // const token = localStorage.getItem('wfx-token');
-    // if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => {
@@ -75,210 +70,64 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function to simulate network latency for mocks
-const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
 // Centralized ERP Service
 export const erpService = {
   // 1. Dashboard metrics
   async getDashboardData(signal) {
-    try {
-      const res = await apiClient.get('/dashboard', { signal });
-      if (res.data && res.data.success) {
-        return res.data.data;
-      }
-      throw new Error('API request failed');
-    } catch (err) {
-      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
-      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
-      return {
-        kpis: mockDb.kpiData,
-        revenueTrend: mockDb.revenueTrend,
-        supplierPerformance: mockDb.supplierPerformance,
-        productCategories: mockDb.productCategories,
-        recentActivity: mockDb.recentActivity
-      };
+    const res = await apiClient.get('/dashboard', { signal });
+    if (res.data && res.data.success) {
+      return res.data.data;
     }
+    throw new Error('API request failed');
   },
 
   // 2. Natural Language Query
   async submitNLQuery(queryText, signal) {
-    try {
-      const res = await apiClient.post('/ai/query', { query: queryText }, { signal });
-      if (res.data && res.data.success) {
-        return res.data.data;
-      }
-      throw new Error('AI query request failed');
-    } catch (err) {
-      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
-      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
-      
-      const queryLower = queryText.toLowerCase();
-      // Search for matches in mock NL queries
-      const match = mockDb.nlQueries.find(q => 
-        queryLower.includes(q.query.toLowerCase()) || 
-        q.query.toLowerCase().includes(queryLower)
-      );
-
-      if (match) {
-        return match;
-      }
-
-      // Default fallback if query is customized
-      return {
-        query: queryText,
-        sql: `SELECT style_number, style_name, fabric, selling_price, stock_quantity \nFROM products \nWHERE style_name LIKE '%${queryText}%' OR fabric LIKE '%${queryText}%';`,
-        headers: ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'],
-        rows: mockDb.products
-          .slice(0, 3)
-          .map(p => [p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()]),
-        aiResponse: `Based on your request, I generated a query to look for garments matching "${queryText}". Found ${Math.min(3, mockDb.products.length)} matching samples in current inventory.`
-      };
+    const res = await apiClient.post('/ai/query', { query: queryText }, { signal });
+    if (res.data && res.data.success) {
+      return res.data.data;
     }
+    throw new Error('AI query request failed');
   },
 
   // 3. Product Search
   async searchProducts(params, signal) {
-    try {
-      const res = await apiClient.get('/products', { params: { ...params, limit: 100 }, signal });
-      if (res.data && res.data.success) {
-        return res.data.data.map(normalizeProduct);
-      }
-    } catch (err) {
-      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
-      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
-
-      const { q = '', category, fabric, gsmRange, supplier, buyer, print, color, season } = params;
-      let filtered = [...mockDb.products];
-
-      // Text search (NL style or basic keywords)
-      if (q.trim() !== '') {
-        const query = q.toLowerCase();
-        filtered = filtered.filter(p => 
-          p.styleName.toLowerCase().includes(query) ||
-          p.styleNumber.toLowerCase().includes(query) ||
-          p.fabric.toLowerCase().includes(query) ||
-          p.supplier.toLowerCase().includes(query) ||
-          p.buyer.toLowerCase().includes(query)
-        );
-      }
-
-      // Dropdown filters
-      if (category) filtered = filtered.filter(p => p.category === category);
-      if (fabric) filtered = filtered.filter(p => p.fabric.toLowerCase().includes(fabric.toLowerCase()));
-      if (supplier) filtered = filtered.filter(p => p.supplier === supplier);
-      if (buyer) filtered = filtered.filter(p => p.buyer === buyer);
-      if (print) filtered = filtered.filter(p => p.print === print);
-      if (color) filtered = filtered.filter(p => p.color === color);
-      if (season) filtered = filtered.filter(p => p.season === season);
-      
-      // GSM Range filters
-      if (gsmRange) {
-        const range = gsmRanges.find(r => r.label === gsmRange);
-        if (range) {
-          filtered = filtered.filter(p => p.gsm >= range.min && p.gsm <= range.max);
-        }
-      }
-
-      return filtered;
+    const res = await apiClient.get('/products', { params: { ...params, limit: 100 }, signal });
+    if (res.data && res.data.success) {
+      return res.data.data.map(normalizeProduct);
     }
+    throw new Error('Product search request failed');
   },
 
   // 4. Image search (garment similarity)
   async searchByImage(imageFile, textQuery, similarityThreshold = 70, signal) {
-    try {
-      const formData = new FormData();
-      if (imageFile) {
-        formData.append('image', imageFile);
-      }
-      formData.append('textQuery', textQuery);
-      formData.append('threshold', similarityThreshold);
-      const res = await apiClient.post('/image/search', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        signal
-      });
-      if (res.data && res.data.success) {
-        return res.data.data.map(normalizeProduct);
-      }
-      throw new Error('Image search request failed');
-    } catch (err) {
-      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
-      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
-
-      // Return products with simulated similarity scores
-      let results = mockDb.products.map(p => {
-        // Adjust similarity based on query if present
-        let score = p.similarityScore;
-        if (textQuery) {
-          const matched = p.styleName.toLowerCase().includes(textQuery.toLowerCase()) || 
-                          p.category.toLowerCase().includes(textQuery.toLowerCase());
-          score = matched ? Math.min(99.5, score + 10) : Math.max(30.0, score - 25);
-        }
-        // Add minor random variance to make it look active
-        score = Math.min(100, Math.max(0, score + (Math.random() * 4 - 2)));
-        return { ...p, similarityScore: parseFloat(score.toFixed(1)) };
-      });
-
-      // Filter by similarity threshold
-      results = results.filter(p => p.similarityScore >= similarityThreshold);
-
-      // Sort by similarity score descending
-      results.sort((a, b) => b.similarityScore - a.similarityScore);
-
-      return results;
+    const formData = new FormData();
+    if (imageFile) {
+      formData.append('image', imageFile);
     }
+    formData.append('textQuery', textQuery);
+    formData.append('threshold', similarityThreshold);
+    const res = await apiClient.post('/image/search', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      signal
+    });
+    if (res.data && res.data.success) {
+      return res.data.data.map(normalizeProduct);
+    }
+    throw new Error('Image search request failed');
   },
 
   // 5. Explorer with sorting/pagination
   async getExplorerProducts(params = {}, signal) {
-    try {
-      const { search = '', category = 'All', sortField = 'styleName', sortOrder = 'asc' } = params;
-      const res = await apiClient.get('/products', {
-        params: { q: search, category, limit: 100 },
-        signal
-      });
-      if (res.data && res.data.success) {
-        let items = res.data.data.map(normalizeProduct);
-        // Sort items in frontend as expected by the page design
-        items.sort((a, b) => {
-          let fieldA = a[sortField];
-          let fieldB = b[sortField];
-
-          if (typeof fieldA === 'string') {
-            fieldA = fieldA.toLowerCase();
-            fieldB = fieldB.toLowerCase();
-          }
-
-          if (fieldA < fieldB) return sortOrder === 'asc' ? -1 : 1;
-          if (fieldA > fieldB) return sortOrder === 'asc' ? 1 : -1;
-          return 0;
-        });
-        return items;
-      }
-      throw new Error('Explorer products request failed');
-    } catch (err) {
-      if (axios.isCancel(err) || err.name === 'AbortError') throw err;
-      console.warn('Axios failed/fallback to mock:', err.customMessage || err.message);
-
-      const { search = '', sortField = 'styleName', sortOrder = 'asc', category = 'All' } = params;
-      let filtered = [...mockDb.products];
-
-      if (category !== 'All') {
-        filtered = filtered.filter(p => p.category === category);
-      }
-
-      if (search.trim()) {
-        const query = search.toLowerCase();
-        filtered = filtered.filter(p => 
-          p.styleName.toLowerCase().includes(query) ||
-          p.styleNumber.toLowerCase().includes(query) ||
-          p.fabric.toLowerCase().includes(query) ||
-          p.supplier.toLowerCase().includes(query)
-        );
-      }
-
-      // Sort
-      filtered.sort((a, b) => {
+    const { search = '', category = 'All', sortField = 'styleName', sortOrder = 'asc' } = params;
+    const res = await apiClient.get('/products', {
+      params: { q: search, category, limit: 100 },
+      signal
+    });
+    if (res.data && res.data.success) {
+      let items = res.data.data.map(normalizeProduct);
+      // Sort items in frontend as expected by the page design
+      items.sort((a, b) => {
         let fieldA = a[sortField];
         let fieldB = b[sortField];
 
@@ -291,9 +140,10 @@ export const erpService = {
         if (fieldA > fieldB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       });
-
-      return filtered;
+      return items;
     }
+    throw new Error('Explorer products request failed');
   }
 };
+
 export default apiClient;

@@ -1,14 +1,9 @@
-import { supabase, isMockDb } from '../config/supabase.js';
-import * as mockDb from '../database/mockDb.js';
+import { supabase } from '../config/supabase.js';
 
 export const partnerController = {
   // 1. GET /suppliers
   async getSuppliers(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({ success: true, data: mockDb.suppliers });
-      }
-
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
@@ -24,10 +19,6 @@ export const partnerController = {
   // 2. GET /buyers
   async getBuyers(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({ success: true, data: mockDb.buyers });
-      }
-
       const { data, error } = await supabase
         .from('buyers')
         .select('*')
@@ -43,10 +34,6 @@ export const partnerController = {
   // 3. GET /orders
   async getOrders(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({ success: true, data: mockDb.salesOrders });
-      }
-
       const { data, error } = await supabase
         .from('sales_orders')
         .select('*, buyers(name)')
@@ -62,10 +49,6 @@ export const partnerController = {
   // 4. GET /invoices
   async getInvoices(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({ success: true, data: mockDb.salesInvoices });
-      }
-
       const { data, error } = await supabase
         .from('sales_invoices')
         .select('*')

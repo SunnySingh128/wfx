@@ -1,6 +1,5 @@
 import { aiService } from '../services/aiService.js';
-import { supabase, isMockDb } from '../config/supabase.js';
-import * as mockDb from '../database/mockDb.js';
+import { supabase } from '../config/supabase.js';
 import CustomError from '../utils/CustomError.js';
 
 export const aiController = {
@@ -11,34 +10,17 @@ export const aiController = {
     try {
       console.log(`[AI Controller] Compiling NL query: "${query}"`);
 
-      // Step A: Check for pre-built NL query responses (mock mode fast path)
-      if (isMockDb) {
-        const queryLower = query.toLowerCase();
-        const match = mockDb.nlQueries.find(q =>
-          queryLower.includes(q.query.toLowerCase()) ||
-          q.query.toLowerCase().includes(queryLower)
-        );
-
-        if (match) {
-          return res.status(200).json({
-            success: true,
-            message: 'Natural language query parsed and executed.',
-            data: {
-              query,
-              sql: match.sql,
-              headers: match.headers,
-              rows: match.rows,
-              aiResponse: match.aiResponse
-            }
-          });
-        }
+      // Step A: Generate SQL from English
+      let sql;
+      try {
+        sql = await aiService.generateSQL(query);
+      } catch (genErr) {
+        console.error('[AI Controller] SQL generation failed:', genErr.message);
+        throw new CustomError(`AI SQL generation failed: ${genErr.message}`, 502);
       }
-
-      // Step B: Generate SQL from English
-      const sql = await aiService.generateSQL(query);
       console.log(`[AI Controller] Generated SQL Statement:\n${sql}`);
 
-      // Step C: Direct Safety Check (express-validator already checked but double-verify here)
+      // Step B: Direct Safety Check (express-validator already checked but double-verify here)
       const sqlLower = sql.toLowerCase();
       const mutations = ['insert', 'update', 'delete', 'drop', 'truncate', 'alter', 'create', 'grant'];
       if (mutations.some(kw => sqlLower.includes(kw))) {
@@ -48,35 +30,55 @@ export const aiController = {
       let rows = [];
       let headers = [];
 
-      // Step D: Execute SQL
-      if (isMockDb) {
-        // Mock DB Executor matching keywords
-        rows = mockDb.queryProductsMock({ q: query }).slice(0, 5).map(p => [
-          p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
-        ]);
-        headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];
-      } else {
-        // Live Supabase Raw SQL Query Executor (via REST RPC endpoint if configured, else fallback)
-        try {
-          // If you have a custom RPC function in Supabase named 'exec_sql'
-          const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
-          if (error) throw error;
-          
-          if (data && data.length > 0) {
-            headers = Object.keys(data[0]);
-            rows = data.map(row => Object.values(row));
-          }
-        } catch (dbErr) {
-          console.warn('[AI Controller] SQL run against Supabase failed, using database fallback:', dbErr.message);
-          rows = mockDb.queryProductsMock({ q: query }).slice(0, 5).map(p => [
-            p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
-          ]);
-          headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];
+      // Step C: Execute SQL
+      try {
+        const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
+        if (error) {
+          console.error('[AI Controller] SQL execution error:', error.message);
+          // Try a simpler fallback approach — return the SQL + error explanation
+          return res.status(200).json({
+            success: true,
+            message: 'Natural language query parsed but SQL execution encountered an issue.',
+            data: {
+              query,
+              sql,
+              headers: [],
+              rows: [],
+              aiResponse: `The generated SQL query could not be executed on the database. Error: ${error.message}. The SQL attempted was: ${sql}`
+            }
+          });
         }
+
+        if (data && data.length > 0) {
+          headers = Object.keys(data[0]);
+          rows = data.map(row => Object.values(row));
+        }
+      } catch (execErr) {
+        console.error('[AI Controller] SQL RPC execution error:', execErr.message);
+        // Return partial result with SQL shown
+        return res.status(200).json({
+          success: true,
+          message: 'SQL execution error — partial result returned.',
+          data: {
+            query,
+            sql,
+            headers: [],
+            rows: [],
+            aiResponse: `The AI generated this SQL but it could not be executed: ${execErr.message}. You may need to create the exec_sql database function. The SQL was: ${sql}`
+          }
+        });
       }
 
-      // Step E: AI Explanation
-      const explanation = await aiService.generateExplanation(query, sql, rows);
+      // Step D: AI Explanation (non-blocking — if this fails, still return data)
+      let explanation = '';
+      try {
+        explanation = await aiService.generateExplanation(query, sql, rows);
+      } catch (explainErr) {
+        console.warn('[AI Controller] Explanation generation failed:', explainErr.message);
+        explanation = rows.length > 0
+          ? `Query returned ${rows.length} row(s). The AI summary is temporarily unavailable.`
+          : 'No results were returned for this query.';
+      }
 
       res.status(200).json({
         success: true,
@@ -102,19 +104,11 @@ export const aiController = {
       let rows = [];
       let headers = [];
 
-      if (isMockDb) {
-        // Return dummy rows for standard visual tests
-        rows = mockDb.products.slice(0, 5).map(p => [
-          p.styleNumber, p.styleName, p.fabric, `$${p.sellingPrice.toFixed(2)}`, p.stockQuantity.toLocaleString()
-        ]);
-        headers = ['Style No', 'Style Name', 'Fabric', 'Price', 'Stock'];
-      } else {
-        const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
-        if (error) throw error;
-        if (data && data.length > 0) {
-          headers = Object.keys(data[0]);
-          rows = data.map(row => Object.values(row));
-        }
+      const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
+      if (error) throw error;
+      if (data && data.length > 0) {
+        headers = Object.keys(data[0]);
+        rows = data.map(row => Object.values(row));
       }
 
       res.status(200).json({

@@ -16,19 +16,24 @@ function ProductSearch() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(searchText, 350);
 
   const fetchProducts = useCallback(async (signal) => {
     setLoading(true);
+    setError(null);
     try {
       const params = { q: debouncedSearch, ...filters };
       const results = await erpService.searchProducts(params, signal);
       setProducts(results);
       setPage(1);
     } catch (err) {
-      if (err.name !== 'AbortError') setProducts([]);
+      if (err.name !== 'AbortError') {
+        setError(err.customMessage || err.message || 'Failed to fetch products.');
+        setProducts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,6 +80,17 @@ function ProductSearch() {
             {loading ? 'Searching…' : `${products.length} result${products.length !== 1 ? 's' : ''}`}
           </span>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="wfx-card" style={{ borderLeft: '4px solid var(--danger)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h4 style={{ color: 'var(--danger)', margin: 0 }}>Search failed</h4>
+              <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>{error}</p>
+            </div>
+            <button className="wfx-btn wfx-btn-secondary" onClick={() => fetchProducts()}>Retry</button>
+          </div>
+        )}
 
         {/* Product Grid */}
         {loading ? (

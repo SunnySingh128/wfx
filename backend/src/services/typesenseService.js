@@ -1,5 +1,5 @@
+import { supabase } from '../config/supabase.js';
 import { env } from '../config/env.js';
-import * as mockDb from '../database/mockDb.js';
 
 // Typesense connection state tracking
 let isTypesenseConnected = false;
@@ -14,7 +14,7 @@ export const typesenseService = {
    */
   async searchFinishedGoods(queryText, filters = {}) {
     if (!isTypesenseConnected) {
-      // Graceful fallback to mock query filtering (simulating index hits)
+      // Graceful fallback to database filters (simulating index hits)
       return this._fallbackDbSearch(queryText, filters);
     }
 
@@ -34,11 +34,11 @@ export const typesenseService = {
   },
 
   /**
-   * Performs image similarity search using mock vector comparisons or actual Typesense vector queries.
+   * Performs image similarity search using actual Typesense vector queries or database.
    */
   async searchByVector(embeddingVector, threshold = 50) {
     if (!isTypesenseConnected) {
-      // Fallback: Return mock products with similarity scores
+      // Fallback: Return products with similarity scores
       return this._fallbackVectorSearch(embeddingVector, threshold);
     }
 
@@ -56,41 +56,33 @@ export const typesenseService = {
     }
   },
 
-  _fallbackDbSearch(q, filters) {
-    let results = [...mockDb.products];
+  async _fallbackDbSearch(q, filters) {
+    let query = supabase.from('finished_goods').select('*');
     if (q) {
-      const term = q.toLowerCase();
-      results = results.filter(p =>
-        p.styleName.toLowerCase().includes(term) ||
-        p.styleNumber.toLowerCase().includes(term) ||
-        p.fabric.toLowerCase().includes(term) ||
-        p.supplier.toLowerCase().includes(term)
-      );
+      query = query.or(`style_name.ilike.%${q}%,style_number.ilike.%${q}%,fabric.ilike.%${q}%`);
     }
     if (filters.category && filters.category !== 'All') {
-      results = results.filter(p => p.category === filters.category);
+      query = query.eq('category', filters.category);
     }
     if (filters.color) {
-      results = results.filter(p => p.color === filters.color);
+      query = query.eq('color', filters.color);
     }
     if (filters.fabric) {
-      results = results.filter(p => p.fabric.toLowerCase().includes(filters.fabric.toLowerCase()));
+      query = query.ilike('fabric', `%${filters.fabric}%`);
     }
-    return results;
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
   },
 
-  _fallbackVectorSearch(vector, threshold) {
-    // Generate simulated similarity scores centered around mock data
-    const scored = mockDb.products.map(p => {
-      // Adjust score slightly to make the search dynamic
-      const randomVariance = Math.random() * 6 - 3;
-      const score = Math.min(99.5, Math.max(30, p.similarityScore + randomVariance));
-      return { ...p, similarityScore: parseFloat(score.toFixed(1)) };
-    });
-
-    return scored
-      .filter(p => p.similarityScore >= threshold)
-      .sort((a, b) => b.similarityScore - a.similarityScore);
+  async _fallbackVectorSearch(vector, threshold) {
+    const { data, error } = await supabase
+      .from('finished_goods')
+      .select('*')
+      .gte('similarity_score', threshold)
+      .order('similarity_score', { ascending: false });
+    if (error) throw error;
+    return data || [];
   }
 };
 

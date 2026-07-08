@@ -11,6 +11,7 @@ function ImageSearch() {
   const [preview, setPreview] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [threshold, setThreshold] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -41,12 +42,16 @@ function ImageSearch() {
 
     setLoading(true);
     setHasSearched(true);
+    setError(null);
 
     try {
       const data = await erpService.searchByImage(selectedFile, textQuery.trim(), threshold, controller.signal);
       setResults(data);
     } catch (err) {
-      if (err.name !== 'AbortError') setResults([]);
+      if (err.name !== 'AbortError') {
+        setError(err.customMessage || err.message || 'Image similarity search failed.');
+        setResults([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -149,6 +154,16 @@ function ImageSearch() {
 
       {/* Results */}
       <div className="image-search-results">
+        {error && (
+          <div className="wfx-card" style={{ borderLeft: '4px solid var(--danger)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h4 style={{ color: 'var(--danger)', margin: 0 }}>Visual Search failed</h4>
+              <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>{error}</p>
+            </div>
+            <button className="wfx-btn wfx-btn-secondary" onClick={handleSearch}>Retry</button>
+          </div>
+        )}
+
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '3rem', justifyContent: 'center' }}>
             <Spinner size="lg" />

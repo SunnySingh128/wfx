@@ -1,31 +1,17 @@
-import { supabase, isMockDb } from '../config/supabase.js';
-import * as mockDb from '../database/mockDb.js';
+import { supabase } from '../config/supabase.js';
+
+const recentActivity = [
+  { id: 'act-1', title: 'New tech pack finalized', detail: 'Style WFX-2026-JK01 spec measurements verified by QA.', time: '2 hours ago', status: 'success' },
+  { id: 'act-2', title: 'Sales invoice generated', detail: 'INV-2026-011 issued for H&M Group (SO-002342) worth $78,500.', time: '5 hours ago', status: 'info' },
+  { id: 'act-3', title: 'Supplier lead time warning', detail: 'Guangdong Silk Co. lead times delayed by 4 days due to port delays.', time: '1 day ago', status: 'warning' },
+  { id: 'act-4', title: 'Bulk order dispatched', detail: '4,800 units of WFX-2026-SH03 shipped out to Stockholm warehouse.', time: '2 days ago', status: 'success' },
+  { id: 'act-5', title: 'New design uploaded', detail: 'Designer uploaded tech pack for "Oversized Merino Sweater".', time: '3 days ago', status: 'warning' },
+];
 
 export const dashboardController = {
   // 1. GET /dashboard/kpis — Aggregated KPI stats
   async getStats(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          message: 'KPI stats retrieved from mock database.',
-          data: {
-            totalFinishedGoods: mockDb.products.length,
-            totalSuppliers: mockDb.suppliers.length,
-            totalBuyers: mockDb.buyers.length,
-            totalOrders: mockDb.salesOrders.length,
-            totalRevenue: mockDb.salesOrders.reduce((sum, o) => sum + o.totalAmount, 0),
-            changes: {
-              finishedGoods: '+12.4% vs last month',
-              suppliers: '+4.2% vs last month',
-              buyers: '+8.1% vs last month',
-              orders: '+18.6% vs last month',
-              revenue: '+22.3% vs last quarter'
-            }
-          }
-        });
-      }
-
       // Query live Supabase
       const { count: fgCount } = await supabase.from('finished_goods').select('*', { count: 'exact', head: true });
       const { count: supCount } = await supabase.from('suppliers').select('*', { count: 'exact', head: true });
@@ -61,14 +47,6 @@ export const dashboardController = {
   // 2. GET /dashboard/trends — Monthly revenue/order trends
   async getRevenue(req, res, next) {
     try {
-      if (isMockDb) {
-        // Return monthly mock data matching the frontend's expectation
-        return res.status(200).json({
-          success: true,
-          data: mockDb.revenueTrend
-        });
-      }
-
       const { data, error } = await supabase
         .from('sales_orders')
         .select('total_amount, order_date')
@@ -105,13 +83,6 @@ export const dashboardController = {
   // 3. GET /dashboard/recent-orders — Latest orders
   async getOrders(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          data: mockDb.salesOrders
-        });
-      }
-
       const { data, error } = await supabase
         .from('sales_orders')
         .select('*, buyers(name)')
@@ -132,19 +103,6 @@ export const dashboardController = {
   // 4. GET /dashboard/top-suppliers — Performance-ranked suppliers
   async getSuppliers(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          data: mockDb.suppliers.map(s => ({
-            id: s.id,
-            name: s.name,
-            score: s.score,
-            onTime: s.onTime,
-            leadTime: s.leadTime
-          }))
-        });
-      }
-
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
@@ -170,13 +128,6 @@ export const dashboardController = {
   // 5. GET /dashboard/categories — Product category distribution
   async getCategories(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          data: mockDb.productCategories
-        });
-      }
-
       const { data, error } = await supabase
         .from('finished_goods')
         .select('category, stock_quantity');
@@ -212,17 +163,9 @@ export const dashboardController = {
   // 6. GET /dashboard/activity — Recent activity feed
   async getActivity(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          data: mockDb.recentActivity
-        });
-      }
-
-      // In production, query an activity log table; for now return mock data
       res.status(200).json({
         success: true,
-        data: mockDb.recentActivity
+        data: recentActivity
       });
     } catch (err) {
       next(err);
@@ -232,38 +175,6 @@ export const dashboardController = {
   // 7. GET /dashboard — Combined all-in-one dashboard data
   async getAll(req, res, next) {
     try {
-      if (isMockDb) {
-        return res.status(200).json({
-          success: true,
-          data: {
-            kpis: {
-              totalFinishedGoods: mockDb.products.length,
-              totalSuppliers: mockDb.suppliers.length,
-              totalBuyers: mockDb.buyers.length,
-              totalOrders: mockDb.salesOrders.length,
-              totalRevenue: mockDb.salesOrders.reduce((sum, o) => sum + o.totalAmount, 0),
-              changes: {
-                finishedGoods: '+12.4% vs last month',
-                suppliers: '+4.2% vs last month',
-                buyers: '+8.1% vs last month',
-                orders: '+18.6% vs last month',
-                revenue: '+22.3% vs last quarter'
-              }
-            },
-            revenueTrend: mockDb.revenueTrend,
-            supplierPerformance: mockDb.suppliers.map(s => ({
-              id: s.id,
-              name: s.name,
-              score: s.score,
-              onTime: s.onTime,
-              leadTime: s.leadTime
-            })),
-            productCategories: mockDb.productCategories,
-            recentActivity: mockDb.recentActivity
-          }
-        });
-      }
-
       // Aggregate live data from Supabase
       const [
         { count: fgCount },
@@ -336,7 +247,7 @@ export const dashboardController = {
           revenueTrend,
           supplierPerformance,
           productCategories,
-          recentActivity: mockDb.recentActivity
+          recentActivity
         }
       });
     } catch (err) {

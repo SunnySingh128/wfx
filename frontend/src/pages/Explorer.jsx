@@ -26,12 +26,14 @@ function Explorer() {
   const [sortIdx, setSortIdx] = useState(0);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 300);
 
   const fetchData = useCallback(async (signal) => {
     setLoading(true);
+    setError(null);
     try {
       const sort = SORT_OPTIONS[sortIdx];
       const data = await erpService.getExplorerProducts(
@@ -41,7 +43,10 @@ function Explorer() {
       setProducts(data);
       setPage(1);
     } catch (err) {
-      if (err.name !== 'AbortError') setProducts([]);
+      if (err.name !== 'AbortError') {
+        setError(err.customMessage || err.message || 'Failed to fetch explorer products.');
+        setProducts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -113,6 +118,17 @@ function Explorer() {
       <p style={{ marginBottom: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }} aria-live="polite">
         {loading ? 'Loading…' : `Showing ${paginatedProducts.length} of ${products.length} styles`}
       </p>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="wfx-card" style={{ borderLeft: '4px solid var(--danger)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h4 style={{ color: 'var(--danger)', margin: 0 }}>Explorer failed</h4>
+            <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>{error}</p>
+          </div>
+          <button className="wfx-btn wfx-btn-secondary" onClick={() => fetchData()}>Retry</button>
+        </div>
+      )}
 
       {/* Product Grid */}
       {loading ? (

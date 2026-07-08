@@ -459,3 +459,15 @@ button, input, select, textarea {
     gap: 1rem;
   }
 }
+
+@media (max-width: 480px) {
+  .wfx-page-body {
+    padding: 0.75rem;
+  }
+  .wfx-card {
+    padding: 1rem;
+  }
+  .wfx-card:hover {
+    transform: none;
+  }
+}

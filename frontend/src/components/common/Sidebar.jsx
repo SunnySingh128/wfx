@@ -10,6 +10,7 @@ import {
   IoChevronForwardOutline,
   IoSunnyOutline,
   IoMoonOutline,
+  IoCloseOutline,
 } from 'react-icons/io5';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -21,13 +22,13 @@ const NAV_ITEMS = [
   { to: '/explorer',     icon: <IoLayersOutline />,       label: 'Explorer' },
 ];
 
-function Sidebar({ collapsed, onToggle }) {
+function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
   return (
     <aside
-      className={`wfx-sidebar ${collapsed ? 'collapsed' : ''}`}
+      className={`wfx-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}
       aria-label="Main navigation"
     >
       {/* Logo */}
@@ -40,6 +41,14 @@ function Sidebar({ collapsed, onToggle }) {
             WFX <span style={{ color: 'var(--primary)' }}>ERP</span>
           </span>
         )}
+        {/* Mobile close button */}
+        <button
+          className="sidebar-mobile-close"
+          onClick={onMobileClose}
+          aria-label="Close navigation"
+        >
+          <IoCloseOutline />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -53,6 +62,7 @@ function Sidebar({ collapsed, onToggle }) {
               `sidebar-nav-item ${isActive ? 'active' : ''}`
             }
             title={collapsed ? label : undefined}
+            onClick={onMobileClose}
           >
             <span className="sidebar-nav-icon">{icon}</span>
             {!collapsed && <span className="sidebar-nav-label">{label}</span>}

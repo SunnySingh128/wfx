@@ -1,7 +1,6 @@
 import fs from 'fs';
 import csvParser from 'csv-parser';
-import { supabase, isMockDb } from '../config/supabase.js';
-import * as mockDb from '../database/mockDb.js';
+import { supabase } from '../config/supabase.js';
 import { typesenseService } from '../services/typesenseService.js';
 import CustomError from '../utils/CustomError.js';
 
@@ -9,58 +8,69 @@ export const productController = {
   // 1. GET /products (filtered & paginated)
   async getProducts(req, res, next) {
     try {
-      const { page = 1, limit = 9, q = '', category, fabric, supplier, buyer, color, season, gsmRange } = req.query;
-      const offset = (page - 1) * limit;
+      const { page = 1, limit = 100, q = '', category, fabric, supplier, buyer, color, season, gsmRange, print } = req.query;
 
-      if (isMockDb) {
-        // Query mock database
-        let results = mockDb.queryProductsMock({ q, category, fabric, supplier, buyer, color, season });
+      // Query live Supabase with supplier name join
+      let query = supabase.from('finished_goods').select('*, suppliers ( name )');
 
-        // GSM filter check
-        if (gsmRange) {
-          const lower = gsmRange.toLowerCase();
-          if (lower.includes('heavy')) results = results.filter(p => p.gsm > 300);
-          else if (lower.includes('medium')) results = results.filter(p => p.gsm >= 150 && p.gsm <= 300);
-          else if (lower.includes('light')) results = results.filter(p => p.gsm < 150);
+      // Apply full-text search across multiple fields
+      if (q) query = query.or(`style_name.ilike.%${q}%,style_number.ilike.%${q}%,fabric.ilike.%${q}%,category.ilike.%${q}%,color.ilike.%${q}%,print.ilike.%${q}%`);
+      
+      // Apply optional filter params
+      if (category && category !== 'All' && category !== '') query = query.ilike('category', `%${category}%`);
+      if (fabric && fabric !== '') query = query.ilike('fabric', `%${fabric}%`);
+      if (color && color !== '') query = query.ilike('color', `%${color}%`);
+      if (season && season !== '') query = query.ilike('season', `%${season}%`);
+      if (print && print !== '') query = query.ilike('print', `%${print}%`);
+      
+      // GSM Range filter
+      if (gsmRange && gsmRange !== '' && gsmRange !== 'All Weights') {
+        // Parse gsmRange patterns like "Lightweight (<150 GSM)", "Midweight (150-300 GSM)", "Heavyweight (>300 GSM)"
+        if (gsmRange.includes('<150') || gsmRange.includes('Lightweight')) {
+          query = query.lt('gsm', 150);
+        } else if (gsmRange.includes('150-300') || gsmRange.includes('Midweight')) {
+          query = query.gte('gsm', 150).lte('gsm', 300);
+        } else if (gsmRange.includes('>300') || gsmRange.includes('Heavyweight')) {
+          query = query.gt('gsm', 300);
         }
-
-        const paginated = results.slice(offset, offset + Number(limit));
-
-        return res.status(200).json({
-          success: true,
-          data: paginated,
-          pagination: {
-            totalItems: results.length,
-            currentPage: Number(page),
-            totalPages: Math.ceil(results.length / limit),
-            itemsPerPage: Number(limit)
-          }
-        });
       }
 
-      // Query live Supabase
-      let query = supabase.from('finished_goods').select('*', { count: 'exact' });
+      // Supplier filter — join to suppliers table
+      if (supplier && supplier !== '') {
+        // Get supplier IDs matching the name first
+        const { data: supData } = await supabase.from('suppliers').select('id').ilike('name', `%${supplier}%`);
+        if (supData && supData.length > 0) {
+          const supIds = supData.map(s => s.id);
+          query = query.in('supplier_id', supIds);
+        } else {
+          // No matching supplier found — return empty
+          return res.status(200).json({ success: true, data: [], pagination: { totalItems: 0, currentPage: 1, totalPages: 0, itemsPerPage: Number(limit) } });
+        }
+      }
 
-      // Apply optional query filters
-      if (q) query = query.or(`style_name.ilike.%${q}%,style_number.ilike.%${q}%,fabric.ilike.%${q}%`);
-      if (category && category !== 'All') query = query.eq('category', category);
-      if (fabric) query = query.ilike('fabric', `%${fabric}%`);
-      if (color) query = query.eq('color', color);
-      if (season) query = query.eq('season', season);
-
-      // Page pagination boundaries
-      query = query.range(offset, offset + Number(limit) - 1);
-      const { data, count, error } = await query;
+      // Limit results (no server-side pagination — frontend handles its own page splitting)
+      query = query.limit(Number(limit));
+      const { data, error } = await query;
 
       if (error) throw error;
 
+      // Flatten supplier name from joined data
+      const normalized = (data || []).map(item => {
+        const supplierName = item.suppliers?.name || null;
+        const { suppliers, ...rest } = item;
+        return {
+          ...rest,
+          supplier_name: supplierName,
+        };
+      });
+
       res.status(200).json({
         success: true,
-        data,
+        data: normalized,
         pagination: {
-          totalItems: count || 0,
-          currentPage: Number(page),
-          totalPages: Math.ceil((count || 0) / limit),
+          totalItems: normalized.length,
+          currentPage: 1,
+          totalPages: 1,
           itemsPerPage: Number(limit)
         }
       });
@@ -74,12 +84,6 @@ export const productController = {
     const { id } = req.params;
 
     try {
-      if (isMockDb) {
-        const item = mockDb.products.find(p => p.id === id || p.styleNumber === id);
-        if (!item) throw new CustomError(`Product not found with ID: ${id}`, 404);
-        return res.status(200).json({ success: true, data: item });
-      }
-
       const { data, error } = await supabase
         .from('finished_goods')
         .select('*, suppliers(*)')
@@ -122,29 +126,6 @@ export const productController = {
         costPrice, sellingPrice, stockQuantity, season, imageUrl, supplierId
       } = req.body;
 
-      if (isMockDb) {
-        const newProduct = {
-          id: `p-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-          styleNumber,
-          styleName,
-          category,
-          fabric,
-          gsm: Number(gsm) || 200,
-          color: color || 'Solid Black',
-          print: print || 'Solid Color',
-          costPrice: Number(costPrice) || 0,
-          sellingPrice: Number(sellingPrice) || 0,
-          stockQuantity: Number(stockQuantity) || 0,
-          season: season || 'Spring 2026',
-          imageUrl: imageUrl || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&auto=format&fit=crop&q=80',
-          supplier: 'Textile Horizon Ltd',
-          buyer: '',
-          similarityScore: 50.0
-        };
-        mockDb.products.push(newProduct);
-        return res.status(201).json({ success: true, message: 'Product created successfully.', data: newProduct });
-      }
-
       const { data, error } = await supabase
         .from('finished_goods')
         .insert({
@@ -178,21 +159,6 @@ export const productController = {
     const { id } = req.params;
 
     try {
-      if (isMockDb) {
-        const idx = mockDb.products.findIndex(p => p.id === id || p.styleNumber === id);
-        if (idx < 0) throw new CustomError(`Product not found with ID: ${id}`, 404);
-
-        // Merge update fields
-        const allowed = ['styleName', 'category', 'fabric', 'gsm', 'color', 'print', 'costPrice', 'sellingPrice', 'stockQuantity', 'season', 'imageUrl'];
-        for (const key of allowed) {
-          if (req.body[key] !== undefined) {
-            mockDb.products[idx][key] = req.body[key];
-          }
-        }
-
-        return res.status(200).json({ success: true, message: 'Product updated successfully.', data: mockDb.products[idx] });
-      }
-
       // Map camelCase body keys to snake_case DB columns
       const updatePayload = {};
       const mapping = {
@@ -232,13 +198,6 @@ export const productController = {
     const { id } = req.params;
 
     try {
-      if (isMockDb) {
-        const idx = mockDb.products.findIndex(p => p.id === id || p.styleNumber === id);
-        if (idx < 0) throw new CustomError(`Product not found with ID: ${id}`, 404);
-        const removed = mockDb.products.splice(idx, 1);
-        return res.status(200).json({ success: true, message: 'Product deleted successfully.', data: removed[0] });
-      }
-
       const { data, error } = await supabase
         .from('finished_goods')
         .delete()
@@ -313,43 +272,12 @@ export const productController = {
 
       // Step B: Bulk upsert rows into database
       if (parsedRows.length > 0) {
-        if (isMockDb) {
-          // Push items dynamically to mockDb list
-          parsedRows.forEach(row => {
-            const camelCaseItem = {
-              id: `p-csv-${Math.random().toString(36).substr(2, 9)}`,
-              styleNumber: row.style_number,
-              styleName: row.style_name,
-              category: row.category,
-              fabric: row.fabric,
-              gsm: row.gsm,
-              color: row.color,
-              print: row.print,
-              costPrice: row.cost_price,
-              sellingPrice: row.selling_price,
-              stockQuantity: row.stock_quantity,
-              season: row.season,
-              imageUrl: row.image_url,
-              supplier: 'Textile Horizon Ltd',
-              buyer: 'ASOS Plc',
-              similarityScore: 65.0
-            };
-            // Prevent duplicate styleNumber in-memory
-            const idx = mockDb.products.findIndex(p => p.styleNumber === row.style_number);
-            if (idx >= 0) {
-              mockDb.products[idx] = camelCaseItem;
-            } else {
-              mockDb.products.push(camelCaseItem);
-            }
-          });
-        } else {
-          // Live bulk write on Supabase
-          const { error } = await supabase
-            .from('finished_goods')
-            .upsert(parsedRows, { onConflict: 'style_number' });
+        // Live bulk write on Supabase
+        const { error } = await supabase
+          .from('finished_goods')
+          .upsert(parsedRows, { onConflict: 'style_number' });
 
-          if (error) throw error;
-        }
+        if (error) throw error;
       }
 
       res.status(200).json({

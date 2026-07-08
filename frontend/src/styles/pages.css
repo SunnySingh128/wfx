@@ -382,3 +382,55 @@
   transition: all var(--transition-fast);
 }
 .notfound-link:hover { background: var(--primary-glow); }
+
+/* =========================================
+   RESPONSIVE — PAGES
+   ========================================= */
+@media (max-width: 768px) {
+  .query-page {
+    height: calc(100vh - var(--navbar-height) - 2rem);
+  }
+  .suggestions-grid {
+    grid-template-columns: 1fr;
+  }
+  .query-bubble-user {
+    max-width: 90%;
+  }
+  .explorer-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .explorer-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .explorer-actions {
+    flex-wrap: wrap;
+  }
+  .explorer-actions .wfx-input-field-container {
+    width: 100% !important;
+  }
+  .search-bar-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .query-textarea {
+    font-size: 0.85rem;
+    padding: 0.75rem;
+  }
+  .query-send-btn {
+    height: 44px;
+    width: 44px;
+  }
+  .threshold-control label {
+    font-size: 0.68rem;
+  }
+  .explorer-tab {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+}
+

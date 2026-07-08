@@ -9,10 +9,10 @@ const requiredEnv = [
   'SUPABASE_ANON_KEY',
 ];
 
-// Validate critical parameters (warn if missing/mocked)
+// Validate critical parameters (throw error if missing or invalid)
 for (const key of requiredEnv) {
   if (!process.env[key] || process.env[key].startsWith('your-')) {
-    console.warn(`[WARNING] Missing or default environment variable: ${key}. Local mocks/fallbacks will be active.`);
+    throw new Error(`[CRITICAL] Missing or invalid environment variable: ${key}. Supabase must be configured for the application to run.`);
   }
 }
 

@@ -17,7 +17,7 @@ import Badge from '../components/ui/Badge';
 const fetchDashboard = (signal) => erpService.getDashboardData(signal);
 
 function Dashboard() {
-  const { data, loading, execute } = useFetch(fetchDashboard, false);
+  const { data, loading, error, execute } = useFetch(fetchDashboard, false);
 
   useEffect(() => { execute(); }, [execute]);
 
@@ -29,6 +29,16 @@ function Dashboard() {
     warning: 'warning',
     pending: 'warning',
   };
+
+  if (error) {
+    return (
+      <div className="wfx-card" style={{ borderLeft: '4px solid var(--danger)', padding: '1.5rem', marginTop: '1rem' }}>
+        <h2 style={{ color: 'var(--danger)', marginTop: 0 }}>Error Loading Dashboard</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>{error}</p>
+        <button className="wfx-btn wfx-btn-primary" onClick={execute}>Retry Request</button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
