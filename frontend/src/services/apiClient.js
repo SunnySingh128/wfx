@@ -34,7 +34,7 @@ const normalizeProduct = (p) => {
 
 // Initialize Axios instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://wfx-ecqx.onrender.com/api',
   timeout: 35000, // 35s timeout (AI queries on free-tier models can be slow)
   headers: {
     'Content-Type': 'application/json',
