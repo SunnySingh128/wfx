@@ -24,7 +24,7 @@ export const env = {
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   openrouterApiKey: process.env.OPENROUTER_API_KEY,
-  openrouterModel: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3-8b-instruct:free',
+  openrouterModel: process.env.OPENROUTER_MODEL || 'openrouter/free',
   typesenseApiKey: process.env.TYPESENSE_API_KEY,
   typesenseHost: process.env.TYPESENSE_HOST || 'localhost',
   typesensePort: process.env.TYPESENSE_PORT || '8108',
