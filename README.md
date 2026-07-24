@@ -13,7 +13,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](#-docker-support)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-[🚀 Live Demo (Frontend)](https://wfx-topaz.vercel.app/) · [🔌 Live API (Backend)](https://wfx-ecqx.onrender.com/api) · [📖 API Docs](#api-reference) · [🐛 Report Bug](https://github.com/SunnySingh128/wfx/issues)
+[🚀 Live Demo (Frontend)](https://wfx-topaz.vercel.app/) · [🔌 Live API (Backend)](https://wfx-ecqx.onrender.com/api) · [📖 API Docs](#api-reference) · [🐛 Report Bug](https://github.com/yogeshbhambhu81-cloud/ERP-NL-query/issues)
 
 </div>
 
@@ -112,7 +112,7 @@ wfx/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/SunnySingh128/wfx.git
+git clone https://github.com/yogeshbhambhu81-cloud/ERP-NL-query.git
 cd wfx
 ```
 
@@ -346,11 +346,11 @@ OPENROUTER_API_KEY=your-openrouter-key
 
 ## 👨‍💻 Author
 
-**Sunny Singh**  
+**Yogesh Bhambhu**  
 Roll No: 2311981524  
 Chitkara University
 
-[![GitHub](https://img.shields.io/badge/GitHub-SunnySingh128-181717?style=flat-square&logo=github)](https://github.com/SunnySingh128)
+[![GitHub](https://img.shields.io/badge/GitHub-yogeshbhambhu81--cloud-181717?style=flat-square&logo=github)](https://github.com/yogeshbhambhu81-cloud)
 
 ---
 

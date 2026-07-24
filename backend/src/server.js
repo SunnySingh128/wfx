@@ -33,13 +33,14 @@ process.on('uncaughtException', (err) => {
   console.error('❌ UNCAUGHT EXCEPTION! Shutting down gracefully...');
   console.error(err.name, err.message);
   process.exit(1);
-});
+});//error is not caught anywhere
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   server.close(() => {
     console.log('Process terminated.');
   });
-});
+});//when we  redeploy or delete server the operating system senda arequest to server please terminate it
+
 
 export default server;

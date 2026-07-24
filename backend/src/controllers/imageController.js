@@ -9,8 +9,8 @@ import CustomError from '../utils/CustomError.js';
  * page refreshes instead of random values.
  */
 function computeSimilarityScore(product, textQuery, imageHash) {
-  // Create a deterministic hash from the product id + a stable seed
-  const seed = `${product.id}-wfx-similarity-v1`;
+  // Create a deterministic hash from the product id, image hash, and a stable seed
+  const seed = `${product.id}-${imageHash || 'no-image'}-wfx-similarity-v1`;
   const hash = crypto.createHash('md5').update(seed).digest('hex');
   // Convert first 8 hex chars to a number in range [60, 98]
   const baseScore = 60 + (parseInt(hash.substring(0, 8), 16) % 39);

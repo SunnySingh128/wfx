@@ -1,9 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';//prevent xss attack
+import morgan from 'morgan'; //log every request
+import compression from 'compression';//compress data
+import rateLimit from 'express-rate-limit';// apply rate limiting only 20 request per minute
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
